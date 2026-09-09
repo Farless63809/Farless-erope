@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Uçan Kuş</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#55c9e3}
+#game{position:fixed;inset:0;overflow:hidden}
+canvas{position:absolute;inset:0;display:block;touch-action:none}
+#score{position:absolute;top:20px;left:50%;transform:translateX(-50%);color:white;font-size:42px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,.4);z-index:10;pointer-events:none}
+#coinCounter{position:absolute;top:20px;right:18px;color:white;font-size:25px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,.4);z-index:10;pointer-events:none}
+#menu,#gameOver{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,.18)}
+#menu.hidden{display:none}
+#menu h1{margin:0 0 35px 0;color:white;font-size:52px;text-shadow:3px 3px 6px rgba(0,0,0,.45)}
+button{width:220px;min-height:60px;border:none;border-radius:15px;background:#ffffff;color:#333;font-size:23px;font-weight:bold;box-shadow:0 5px 12px rgba(0,0,0,.25);touch-action:manipulation}
+button:active{transform:scale(.96)}
+#shopButton{margin-top:25px}
+#inventoryButton{margin-top:20px}
+#gameOver{display:none}
+#gameOver h2{margin:0 0 15px 0;color:white;font-size:45px;text-shadow:3px 3px 6px rgba(0,0,0,.45)}
+#gameOver p{margin:5px 0;color:white;font-size:25px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,.4)}
+#restart{margin-top:25px}
+#menuButton{margin-top:20px}
+#shop{position:absolute;inset:0;display:none;background:white;z-index:200;pointer-events:auto}
+#shopTitle{position:absolute;top:25px;left:50%;transform:translateX(-50%);margin:0;color:#333;font-size:32px;font-weight:bold}
+#shopBuyButton{position:absolute;top:90px;left:20px;margin:0;width:auto;min-width:250px;padding:0 20px}
+#coinMultiplierBuyButton{position:absolute;top:160px;left:20px;margin:0;width:auto;min-width:300px;padding:0 20px}
+#shopCoinDisplay{position:absolute;top:25px;right:20px;color:#333;font-size:25px;font-weight:bold}
+#shopExitButton{position:absolute;right:20px;bottom:25px;margin:0;width:160px}
+#inventory{position:absolute;inset:0;display:none;background:white;z-index:210;pointer-events:auto}
+#inventoryTitle{position:absolute;top:25px;left:50%;transform:translateX(-50%);margin:0;color:#333;font-size:32px;font-weight:bold}
+#heavySlowInventoryButton{position:absolute;top:90px;left:20px;width:auto;min-width:300px;padding:0 20px;margin:0}
+#coinMultiplierInventoryButton{position:absolute;top:160px;left:20px;width:auto;min-width:300px;padding:0 20px;margin:0}
+#inventoryExitButton{position:absolute;right:20px;bottom:25px;width:160px;margin:0}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="canvas"></canvas>
+<div id="score">0</div>
+<div id="coinCounter">🪙 100000</div>
+
+<div id="menu">
+<h1>UÇAN KUŞ</h1>
+<button id="startButton">BAŞLA</button>
+<button id="shopButton">DÜKKAN</button>
+<button id="inventoryButton">ENVANTER</button>
+</div>
+
+<div id="gameOver">
+<h2>OYUN BİTTİ</h2>
+<p>Skor: <span id="finalScore">0</span></p>
+<p>Rekor: <span id="bestScore">0</span></p>
+<button id="restart">TEKRAR OYNA</button>
+<button id="menuButton">MENÜ</button>
+</div>
+
+<div id="shop">
+<h2 id="shopTitle">DÜKKAN</h2>
+<button id="shopBuyButton">AĞIR ÇEKİM — 300 🪙</button>
+<button id="coinMultiplierBuyButton">KAZANÇ KATLAMA — 500 🪙</button>
+<div id="shopCoinDisplay">🪙 100000</div>
+<button id="shopExitButton">ÇIK</button>
+</div>
+
+<div id="inventory">
+<h2 id="inventoryTitle">ENVANTER</h2>
+<button id="heavySlowInventoryButton">AĞIR ÇEKİM — YOK (x0)</button>
+<button id="coinMultiplierInventoryButton">KAZANÇ KATLAMA — YOK (x0)</button>
+<button id="inventoryExitButton">ÇIK</button>
+</div>
+
+<script>
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const scoreElement=document.getElementById("score");
+const coinCounter=document.getElementById("coinCounter");
+const menu=document.getElementById("menu");
+const gameOver=document.getElementById("gameOver");
+const startButton=document.getElementById("startButton");
+const restartButton=document.getElementById("restart");
+const menuButton=document.getElementById("menuButton");
+const finalScore=document.getElementById("finalScore");
+const bestScore=document.getElementById("bestScore");
+
+const shopButton=document.getElementById("shopButton");
+const shop=document.getElementById("shop");
+const shopBuyButton=document.getElementById("shopBuyButton");
+const coinMultiplierBuyButton=document.getElementById("coinMultiplierBuyButton");
+const shopExitButton=document.getElementById("shopExitButton");
+const shopCoinDisplay=document.getElementById("shopCoinDisplay");
+
+const inventoryButton=document.getElementById("inventoryButton");
+const inventory=document.getElementById("inventory");
+const inventoryExitButton=document.getElementById("inventoryExitButton");
+const heavySlowInventoryButton=document.getElementById("heavySlowInventoryButton");
+const coinMultiplierInventoryButton=document.getElementById("coinMultiplierInventoryButton");
+
+let WIDTH=0,HEIGHT=0,DPR=1;
+
+function resizeCanvas(){
+DPR=Math.min(window.devicePixelRatio||1,2);
+WIDTH=window.innerWidth;
+HEIGHT=window.innerHeight;
+canvas.width=WIDTH*DPR;
+canvas.height=HEIGHT*DPR;
+canvas.style.width=WIDTH+"px";
+canvas.style.height=HEIGHT+"px";
+ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
+
+const gravity=0.42;
+const jumpPower=-8.0;
+
+const normalPipeSpeed=2.8;
+const hardPipeSpeed=4.2;
+const extremePipeSpeed=5.6;
+
+const slowNormalPipeSpeed=1.8;
+const slowHardPipeSpeed=2.8;
+const slowExtremePipeSpeed=3.7;
+
+const pipeWidth=70;
+const pipeGap=205;
+const pipeDistance=270;
+
+const normalVerticalChangeMin=80;
+const normalVerticalChangeMax=160;
+const hardVerticalChangeMin=80;
+const hardVerticalChangeMax=290;
+const extremeVerticalChangeMin=80;
+const extremeVerticalChangeMax=330;
+
+const coinChance=0.70;
+const coinRotationSpeed=0.03;
+
+const coinBagRotationSpeed=0.02;
+const coinBagReward=10;
+
+let gameRunning=false;
+let gameStarted=false;
+let score=0;
+let best=0;
+let coins=100000;
+
+let heavySlowInventory=Number(localStorage.getItem("ucanKusHeavySlowInventory")||0);
+let heavySlowActive=false;
+let heavySlowNextRound=localStorage.getItem("ucanKusHeavySlowNextRound")==="1";
+
+let coinMultiplierInventory=Number(localStorage.getItem("ucanKusCoinMultiplierInventory")||0);
+let coinMultiplierActive=false;
+let coinMultiplierNextRound=localStorage.getItem("ucanKusCoinMultiplierNextRound")==="1";
+
+let coinObjects=[];
+let coinBagObjects=[];
+let pipeCount=0;
+let animationId=null;
+
+const bird={
+x:90,y:300,width:38,height:30,velocity:0,rotation:0
+};
+
+let pipes=[];
+
+best=Number(localStorage.getItem("ucanKusBest")||0);
+bestScore.textContent=best;
+
+function randomBetween(min,max){
+return Math.random()*(max-min)+min;
+}
+
+function updateInventoryButton(){
+if(heavySlowNextRound){
+heavySlowInventoryButton.textContent="AĞIR ÇEKİM — HAZIR (x"+heavySlowInventory+")";
+}else if(heavySlowActive){
+heavySlowInventoryButton.textContent="AĞIR ÇEKİM — AKTİF (x"+heavySlowInventory+")";
+}else if(heavySlowInventory>0){
+heavySlowInventoryButton.textContent="AĞIR ÇEKİM — KULLAN (x"+heavySlowInventory+")";
+}else{
+heavySlowInventoryButton.textContent="AĞIR ÇEKİM — YOK (x0)";
+}
+
+if(coinMultiplierNextRound){
+coinMultiplierInventoryButton.textContent="KAZANÇ KATLAMA — HAZIR (x"+coinMultiplierInventory+")";
+}else if(coinMultiplierActive){
+coinMultiplierInventoryButton.textContent="KAZANÇ KATLAMA — AKTİF (x"+coinMultiplierInventory+")";
+}else if(coinMultiplierInventory>0){
+coinMultiplierInventoryButton.textContent="KAZANÇ KATLAMA — KULLAN (x"+coinMultiplierInventory+")";
+}else{
+coinMultiplierInventoryButton.textContent="KAZANÇ KATLAMA — YOK (x0)";
+}
+}
+
+/* =========================
+   BORU OLUŞTUR
+========================= */
+
+function createPipe(x){
+
+const minTop=80;
+
+/* 50+ skorda her yeni boru için 170-205 arası boşluk */
+const currentPipeGap=
+score>=50
+?Math.floor(Math.random()*36)+170
+:pipeGap;
+
+const maxBottom=HEIGHT-80;
+
+const calculatedMaxTop=
+maxBottom-currentPipeGap;
+
+const maxTop=Math.max(minTop,calculatedMaxTop);
+
+let topHeight;
+
+if(pipes.length===0){
+
+topHeight=randomBetween(minTop,maxTop);
+
+}else{
+
+const previous=pipes[pipes.length-1].top;
+
+if(score>=50){
+
+const candidates=[];
+
+const upMin=Math.max(
+minTop,
+previous-extremeVerticalChangeMax
+);
+
+const upMax=Math.min(
+maxTop,
+previous-extremeVerticalChangeMin
+);
+
+if(upMin<=upMax){
+candidates.push(randomBetween(upMin,upMax));
+}
+
+const downMin=Math.max(
+minTop,
+previous+extremeVerticalChangeMin
+);
+
+const downMax=Math.min(
+maxTop,
+previous+extremeVerticalChangeMax
+);
+
+if(downMin<=downMax){
+candidates.push(randomBetween(downMin,downMax));
+}
+
+if(candidates.length>0){
+topHeight=candidates[
+Math.floor(Math.random()*candidates.length)
+];
+}else{
+topHeight=randomBetween(minTop,maxTop);
+}
+
+}else if(score>=20){
+
+const candidates=[];
+
+const upMin=Math.max(
+minTop,
+previous-hardVerticalChangeMax
+);
+
+const upMax=Math.min(
+maxTop,
+previous-hardVerticalChangeMin
+);
+
+if(upMin<=upMax){
+candidates.push(randomBetween(upMin,upMax));
+}
+
+const downMin=Math.max(
+minTop,
+previous+hardVerticalChangeMin
+);
+
+const downMax=Math.min(
+maxTop,
+previous+hardVerticalChangeMax
+);
+
+if(downMin<=downMax){
+candidates.push(randomBetween(downMin,downMax));
+}
+
+if(candidates.length>0){
+topHeight=candidates[
+Math.floor(Math.random()*candidates.length)
+];
+}else{
+topHeight=randomBetween(minTop,maxTop);
+}
+
+}else{
+
+const candidates=[];
+
+const upMin=Math.max(
+minTop,
+previous-normalVerticalChangeMax
+);
+
+const upMax=Math.min(
+maxTop,
+previous-normalVerticalChangeMin
+);
+
+if(upMin<=upMax){
+candidates.push(randomBetween(upMin,upMax));
+}
+
+const downMin=Math.max(
+minTop,
+previous+normalVerticalChangeMin
+);
+
+const downMax=Math.min(
+maxTop,
+previous+normalVerticalChangeMax
+);
+
+if(downMin<=downMax){
+candidates.push(randomBetween(downMin,downMax));
+}
+
+if(candidates.length>0){
+topHeight=candidates[
+Math.floor(Math.random()*candidates.length)
+];
+}else{
+topHeight=randomBetween(minTop,maxTop);
+}
+
+}
+
+}
+
+pipeCount++;
+
+pipes.push({
+x:x,
+top:topHeight,
+gap:currentPipeGap,
+passed:false
+});
+
+const rewardX=x+pipeWidth/2;
+const rewardY=topHeight+currentPipeGap/2;
+
+if(pipeCount%10===0){
+
+coinBagObjects.push({
+x:rewardX,
+y:rewardY,
+width:46,
+height:46,
+collected:false,
+rotation:0
+});
+
+}else if(Math.random()<coinChance){
+
+coinObjects.push({
+x:rewardX,
+y:rewardY,
+radius:18,
+collected:false,
+rotation:0
+});
+
+}
+
+}
+  /* =========================
+   RESET
+========================= */
+
+function resetGame(){
+
+score=0;
+pipes=[];
+coinObjects=[];
+coinBagObjects=[];
+pipeCount=0;
+
+bird.x=90;
+bird.y=HEIGHT*0.45;
+bird.velocity=0;
+bird.rotation=0;
+
+scoreElement.textContent="0";
+coinCounter.textContent="🪙 "+coins;
+
+createPipe(WIDTH+100);
+
+}
+
+
+/* =========================
+   OYUNU BAŞLAT
+========================= */
+
+function startGame(){
+
+resetGame();
+
+if(heavySlowNextRound){
+
+heavySlowActive=true;
+coinMultiplierActive=false;
+heavySlowNextRound=false;
+
+localStorage.setItem(
+"ucanKusHeavySlowNextRound",
+"0"
+);
+
+}else if(coinMultiplierNextRound){
+
+heavySlowActive=false;
+coinMultiplierActive=true;
+coinMultiplierNextRound=false;
+
+localStorage.setItem(
+"ucanKusCoinMultiplierNextRound",
+"0"
+);
+
+}else{
+
+heavySlowActive=false;
+coinMultiplierActive=false;
+
+}
+
+gameStarted=true;
+gameRunning=true;
+
+menu.classList.add("hidden");
+
+gameOver.style.display="none";
+shop.style.display="none";
+inventory.style.display="none";
+
+updateInventoryButton();
+
+bird.velocity=jumpPower;
+
+if(animationId!==null){
+
+cancelAnimationFrame(animationId);
+animationId=null;
+
+}
+
+gameLoop();
+
+}
+
+
+/* =========================
+   FLAP
+========================= */
+
+function flap(){
+
+if(!gameStarted){
+
+startGame();
+return;
+
+}
+
+if(!gameRunning){
+
+return;
+
+}
+
+bird.velocity=jumpPower;
+
+}
+
+
+/* =========================
+   BAŞLA
+========================= */
+
+startButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+startGame();
+
+}
+);
+
+
+/* =========================
+   TEKRAR OYNA
+========================= */
+
+restartButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+startGame();
+
+}
+);
+
+
+/* =========================
+   MENÜ
+========================= */
+
+function goToMenu(){
+
+gameRunning=false;
+gameStarted=false;
+
+heavySlowActive=false;
+coinMultiplierActive=false;
+
+if(animationId!==null){
+
+cancelAnimationFrame(animationId);
+animationId=null;
+
+}
+
+score=0;
+pipes=[];
+coinObjects=[];
+coinBagObjects=[];
+pipeCount=0;
+
+bird.x=90;
+bird.y=HEIGHT*0.45;
+bird.velocity=0;
+bird.rotation=0;
+
+scoreElement.textContent="0";
+coinCounter.textContent="🪙 "+coins;
+
+gameOver.style.display="none";
+shop.style.display="none";
+inventory.style.display="none";
+
+menu.classList.remove("hidden");
+
+updateInventoryButton();
+
+draw();
+
+}
+
+
+/* =========================
+   MENÜ BUTONU
+========================= */
+
+menuButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+goToMenu();
+
+}
+);
+
+
+/* =========================
+   DÜKKAN
+========================= */
+
+shopButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+gameRunning=false;
+gameStarted=false;
+
+heavySlowActive=false;
+coinMultiplierActive=false;
+
+if(animationId!==null){
+
+cancelAnimationFrame(animationId);
+animationId=null;
+
+}
+
+menu.classList.add("hidden");
+
+gameOver.style.display="none";
+inventory.style.display="none";
+shop.style.display="block";
+
+shopCoinDisplay.textContent="🪙 "+coins;
+
+}
+);
+
+
+/* =========================
+   DÜKKANDAN ÇIK
+========================= */
+
+shopExitButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+goToMenu();
+
+}
+);
+
+
+/* =========================
+   AĞIR ÇEKİM SATIN AL
+========================= */
+
+shopBuyButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+if(coins>=300){
+
+coins-=300;
+
+localStorage.setItem(
+"ucanKusCoins",
+coins
+);
+
+heavySlowInventory++;
+
+localStorage.setItem(
+"ucanKusHeavySlowInventory",
+heavySlowInventory
+);
+
+coinCounter.textContent="🪙 "+coins;
+shopCoinDisplay.textContent="🪙 "+coins;
+
+updateInventoryButton();
+
+shopBuyButton.textContent="SATIN ALINDI ✓";
+
+setTimeout(
+function(){
+
+shopBuyButton.textContent=
+"AĞIR ÇEKİM — 300 🪙";
+
+},
+1000
+);
+
+}
+
+}
+);
+
+
+/* =========================
+   KAZANÇ KATLAMA SATIN AL
+========================= */
+
+coinMultiplierBuyButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+if(coins>=500){
+
+coins-=500;
+
+localStorage.setItem(
+"ucanKusCoins",
+coins
+);
+
+coinMultiplierInventory++;
+
+localStorage.setItem(
+"ucanKusCoinMultiplierInventory",
+coinMultiplierInventory
+);
+
+coinCounter.textContent="🪙 "+coins;
+shopCoinDisplay.textContent="🪙 "+coins;
+
+updateInventoryButton();
+
+coinMultiplierBuyButton.textContent=
+"SATIN ALINDI ✓";
+
+setTimeout(
+function(){
+
+coinMultiplierBuyButton.textContent=
+"KAZANÇ KATLAMA — 500 🪙";
+
+},
+1000
+);
+
+}
+
+}
+);
+
+
+/* =========================
+   ENVANTER
+========================= */
+
+inventoryButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+gameRunning=false;
+gameStarted=false;
+
+heavySlowActive=false;
+coinMultiplierActive=false;
+
+if(animationId!==null){
+
+cancelAnimationFrame(animationId);
+animationId=null;
+
+}
+
+menu.classList.add("hidden");
+
+gameOver.style.display="none";
+shop.style.display="none";
+inventory.style.display="block";
+
+updateInventoryButton();
+
+}
+);
+
+
+/* =========================
+   ENVANTERDEN ÇIK
+========================= */
+
+inventoryExitButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+goToMenu();
+
+}
+);
+
+
+/* =========================
+   AĞIR ÇEKİM KULLAN
+========================= */
+
+heavySlowInventoryButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+if(
+coinMultiplierNextRound||
+coinMultiplierActive
+){
+
+return;
+
+}
+
+if(heavySlowNextRound){
+
+return;
+
+}
+
+if(heavySlowActive){
+
+return;
+
+}
+
+if(heavySlowInventory<=0){
+
+return;
+
+}
+
+heavySlowInventory--;
+
+localStorage.setItem(
+"ucanKusHeavySlowInventory",
+heavySlowInventory
+);
+
+heavySlowNextRound=true;
+
+localStorage.setItem(
+"ucanKusHeavySlowNextRound",
+"1"
+);
+
+updateInventoryButton();
+
+}
+);
+
+
+/* =========================
+   KAZANÇ KATLAMA KULLAN
+========================= */
+
+coinMultiplierInventoryButton.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+e.stopPropagation();
+
+if(
+heavySlowNextRound||
+heavySlowActive
+){
+
+return;
+
+}
+
+if(coinMultiplierNextRound){
+
+return;
+
+}
+
+if(coinMultiplierActive){
+
+return;
+
+}
+
+if(coinMultiplierInventory<=0){
+
+return;
+
+}
+
+coinMultiplierInventory--;
+
+localStorage.setItem(
+"ucanKusCoinMultiplierInventory",
+coinMultiplierInventory
+);
+
+coinMultiplierNextRound=true;
+
+localStorage.setItem(
+"ucanKusCoinMultiplierNextRound",
+"1"
+);
+
+updateInventoryButton();
+
+}
+);
+
+
+/* MOBİL */
+
+canvas.addEventListener(
+"pointerdown",
+function(e){
+
+e.preventDefault();
+flap();
+
+}
+);
+
+
+/* KLAVYE */
+
+window.addEventListener(
+"keydown",
+function(e){
+
+if(
+e.code==="Space"||
+e.code==="ArrowUp"
+){
+
+e.preventDefault();
+flap();
+
+}
+
+}
+);
+
+
+/* KUŞ GÜNCELLE */
+
+function updateBird(){
+
+bird.velocity+=gravity;
+bird.y+=bird.velocity;
+
+bird.rotation=Math.max(
+-0.5,
+Math.min(
+1.2,
+bird.velocity*0.08
+)
+);
+
+}
+
+
+/* =========================
+   BORULAR + ÖDÜLLER
+========================= */
+
+function updatePipes(){
+
+let speed;
+
+if(!heavySlowActive){
+
+if(score>=50){
+
+speed=extremePipeSpeed;
+
+}else if(score>=20){
+
+speed=hardPipeSpeed;
+
+}else{
+
+speed=normalPipeSpeed;
+
+}
+
+}else{
+
+if(score>=50){
+
+speed=slowExtremePipeSpeed;
+
+}else if(score>=20){
+
+speed=slowHardPipeSpeed;
+
+}else{
+
+speed=slowNormalPipeSpeed;
+
+}
+
+}
+
+for(
+let i=0;
+i<pipes.length;
+i++
+){
+
+const pipe=pipes[i];
+
+pipe.x-=speed;
+
+if(
+!pipe.passed&&
+pipe.x+pipeWidth<bird.x
+){
+
+pipe.passed=true;
+
+score++;
+
+scoreElement.textContent=score;
+
+}
+
+}
+
+
+/* COIN */
+
+for(
+let i=0;
+i<coinObjects.length;
+i++
+){
+
+const coin=coinObjects[i];
+
+coin.x-=speed;
+coin.rotation+=coinRotationSpeed;
+
+if(!coin.collected){
+
+const birdCenterX=
+bird.x+bird.width/2;
+
+const birdCenterY=
+bird.y+bird.height/2;
+
+const dx=
+birdCenterX-coin.x;
+
+const dy=
+birdCenterY-coin.y;
+
+const distance=
+Math.sqrt(dx*dx+dy*dy);
+
+if(
+distance<
+coin.radius+20
+){
+
+coin.collected=true;
+
+if(coinMultiplierActive){
+
+if(score>=50){
+
+coins+=50;
+
+}else if(score>=20){
+
+coins+=30;
+
+}else{
+
+coins+=10;
+
+}
+
+}else{
+
+if(score>=50){
+
+coins+=3;
+
+}else if(score>=20){
+
+coins+=2;
+
+}else{
+
+coins+=1;
+
+}
+
+}
+
+localStorage.setItem(
+"ucanKusCoins",
+coins
+);
+
+coinCounter.textContent=
+"🪙 "+coins;
+
+}
+
+}
+
+}
+
+
+/* TORBA */
+
+for(
+let i=0;
+i<coinBagObjects.length;
+i++
+){
+
+const bag=coinBagObjects[i];
+
+bag.x-=speed;
+bag.rotation+=coinBagRotationSpeed;
+
+if(bag.rotation>Math.PI*2){
+
+bag.rotation-=Math.PI*2;
+
+}
+
+if(!bag.collected){
+
+const birdCenterX=
+bird.x+bird.width/2;
+
+const birdCenterY=
+bird.y+bird.height/2;
+
+const dx=
+birdCenterX-bag.x;
+
+const dy=
+birdCenterY-bag.y;
+
+const distance=
+Math.sqrt(dx*dx+dy*dy);
+
+if(distance<30){
+
+bag.collected=true;
+
+if(coinMultiplierActive){
+
+coins+=100;
+
+}else if(score>=50){
+
+coins+=20;
+
+}else{
+
+coins+=coinBagReward;
+
+}
+
+localStorage.setItem(
+"ucanKusCoins",
+coins
+);
+
+coinCounter.textContent=
+"🪙 "+coins;
+
+}
+
+}
+
+}
+
+
+/* TEMİZLE */
+
+pipes=pipes.filter(
+function(pipe){
+
+return pipe.x+pipeWidth>-20;
+
+}
+);
+
+coinObjects=coinObjects.filter(
+function(coin){
+
+return coin.x+coin.radius>-20;
+
+}
+);
+
+coinBagObjects=coinBagObjects.filter(
+function(bag){
+
+return bag.x+bag.width>-20;
+
+}
+);
+
+
+/* YENİ BORU */
+
+if(pipes.length>0){
+
+const lastPipe=
+pipes[pipes.length-1];
+
+if(
+lastPipe.x<
+WIDTH-pipeDistance
+){
+
+createPipe(
+lastPipe.x+pipeDistance
+);
+
+}
+
+}else{
+
+createPipe(WIDTH+100);
+
+}
+
+  }
+  /* =========================
+   ÇARPIŞMA
+========================= */
+
+function checkCollision(){
+
+const birdLeft=bird.x;
+const birdRight=bird.x+bird.width;
+const birdTop=bird.y;
+const birdBottom=bird.y+bird.height;
+
+if(birdTop<=0){
+
+return true;
+
+}
+
+if(birdBottom>=HEIGHT){
+
+return true;
+
+}
+
+for(
+let i=0;
+i<pipes.length;
+i++
+){
+
+const pipe=pipes[i];
+
+const pipeLeft=pipe.x;
+const pipeRight=pipe.x+pipeWidth;
+
+if(
+birdRight>pipeLeft&&
+birdLeft<pipeRight
+){
+
+const topPipeBottom=
+pipe.top;
+
+const bottomPipeTop=
+pipe.top+pipe.gap;
+
+if(
+birdTop<topPipeBottom||
+birdBottom>bottomPipeTop
+){
+
+return true;
+
+}
+
+}
+
+}
+
+return false;
+
+}
+
+
+/* =========================
+   GAME OVER
+========================= */
+
+function endGame(){
+
+gameRunning=false;
+
+heavySlowActive=false;
+coinMultiplierActive=false;
+
+updateInventoryButton();
+
+if(score>best){
+
+best=score;
+
+localStorage.setItem(
+"ucanKusBest",
+best
+);
+
+}
+
+finalScore.textContent=score;
+bestScore.textContent=best;
+
+gameOver.style.display="flex";
+
+}
+
+
+/* =========================
+   ARKA PLAN
+========================= */
+
+function drawBackground(){
+
+const skyGradient=
+ctx.createLinearGradient(
+0,0,0,HEIGHT
+);
+
+skyGradient.addColorStop(
+0,
+"#55c9e3"
+);
+
+skyGradient.addColorStop(
+1,
+"#b9edf2"
+);
+
+ctx.fillStyle=skyGradient;
+
+ctx.fillRect(
+0,0,WIDTH,HEIGHT
+);
+
+function drawCloud(x,y,scale){
+
+ctx.fillStyle=
+"rgba(255,255,255,0.82)";
+
+ctx.beginPath();
+
+ctx.arc(
+x,y,20*scale,0,Math.PI*2
+);
+
+ctx.arc(
+x+25*scale,
+y-10*scale,
+25*scale,
+0,Math.PI*2
+);
+
+ctx.arc(
+x+55*scale,
+y,
+20*scale,
+0,Math.PI*2
+);
+
+ctx.fillRect(
+x-5*scale,
+y,
+65*scale,
+20*scale
+);
+
+ctx.fill();
+
+}
+
+drawCloud(
+WIDTH*0.12,
+HEIGHT*0.16,
+0.85
+);
+
+drawCloud(
+WIDTH*0.62,
+HEIGHT*0.25,
+0.65
+);
+
+drawCloud(
+WIDTH*0.86,
+HEIGHT*0.10,
+0.55
+);
+
+drawCloud(
+WIDTH*0.38,
+HEIGHT*0.48,
+0.45
+);
+
+drawCloud(
+WIDTH*0.75,
+HEIGHT*0.58,
+0.35
+);
+
+}
+
+
+/* =========================
+   BORULARI ÇİZ
+========================= */
+
+function drawPipes(){
+
+for(
+let i=0;
+i<pipes.length;
+i++
+){
+
+const pipe=pipes[i];
+
+const x=pipe.x;
+const top=pipe.top;
+
+/* HER BORUNUN KENDİ BOŞLUĞU */
+const bottomY=top+pipe.gap;
+
+ctx.fillStyle="#5cb85c";
+
+ctx.fillRect(
+x,
+0,
+pipeWidth,
+top
+);
+
+ctx.fillStyle="#4cae4c";
+
+ctx.fillRect(
+x-5,
+top-25,
+pipeWidth+10,
+25
+);
+
+ctx.fillStyle=
+"rgba(255,255,255,0.18)";
+
+ctx.fillRect(
+x+8,
+0,
+8,
+Math.max(0,top-25)
+);
+
+ctx.fillStyle="#5cb85c";
+
+ctx.fillRect(
+x,
+bottomY,
+pipeWidth,
+HEIGHT-bottomY
+);
+
+ctx.fillStyle="#4cae4c";
+
+ctx.fillRect(
+x-5,
+bottomY,
+pipeWidth+10,
+25
+);
+
+ctx.fillStyle=
+"rgba(255,255,255,0.18)";
+
+ctx.fillRect(
+x+8,
+bottomY+25,
+8,
+Math.max(
+0,
+HEIGHT-bottomY-25
+)
+);
+
+}
+
+}
+
+
+/* =========================
+   3D COIN
+========================= */
+
+function drawCoins(){
+
+for(
+let i=0;
+i<coinObjects.length;
+i++
+){
+
+const coin=coinObjects[i];
+
+if(coin.collected){
+
+continue;
+
+}
+
+ctx.save();
+
+ctx.translate(
+coin.x,
+coin.y
+);
+
+const angle=coin.rotation;
+
+const cos=Math.cos(angle);
+const sin=Math.sin(angle);
+
+const faceWidth=Math.max(
+0.07,
+Math.abs(cos)
+);
+
+const size=coin.radius*1.20;
+
+const edgeDepth=
+3+5*Math.abs(sin);
+
+ctx.save();
+
+ctx.scale(
+faceWidth,
+1
+);
+
+ctx.beginPath();
+
+ctx.ellipse(
+edgeDepth*0.9,
+2,
+size,
+size,
+0,
+0,
+Math.PI*2
+);
+
+ctx.fillStyle="#946000";
+ctx.fill();
+
+ctx.strokeStyle="#674200";
+ctx.lineWidth=2.5;
+ctx.stroke();
+
+ctx.restore();
+
+ctx.save();
+
+ctx.scale(
+faceWidth,
+1
+);
+
+ctx.beginPath();
+
+ctx.arc(
+0,
+0,
+size,
+0,
+Math.PI*2
+);
+
+const goldGradient=
+ctx.createRadialGradient(
+-size*0.35,
+-size*0.40,
+size*0.10,
+0,
+0,
+size
+);
+
+goldGradient.addColorStop(
+0,
+"#FFF5A8"
+);
+
+goldGradient.addColorStop(
+0.35,
+"#FFD700"
+);
+
+goldGradient.addColorStop(
+0.75,
+"#F4B700"
+);
+
+goldGradient.addColorStop(
+1,
+"#C27D00"
+);
+
+ctx.fillStyle=goldGradient;
+ctx.fill();
+
+ctx.lineWidth=3;
+ctx.strokeStyle="#996500";
+ctx.stroke();
+
+ctx.beginPath();
+
+ctx.arc(
+0,
+0,
+size-4,
+0,
+Math.PI*2
+);
+
+ctx.lineWidth=2;
+ctx.strokeStyle="#FFF0A0";
+ctx.stroke();
+
+ctx.fillStyle=
+"rgba(100,60,0,0.45)";
+
+ctx.font="bold 19px Arial";
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+
+ctx.fillText(
+"$",
+sin*2+1,
+2
+);
+
+ctx.fillStyle="#B87500";
+
+ctx.fillText(
+"$",
+sin*2,
+1
+);
+
+const shineX=
+-cos*size*0.38;
+
+const shineY=
+-size*0.38;
+
+ctx.beginPath();
+
+ctx.ellipse(
+shineX,
+shineY,
+size*0.18,
+size*0.38,
+-0.35,
+0,
+Math.PI*2
+);
+
+ctx.fillStyle=
+"rgba(255,255,255,0.50)";
+
+ctx.fill();
+
+ctx.restore();
+
+if(faceWidth<0.30){
+
+ctx.beginPath();
+
+ctx.ellipse(
+0,
+0,
+2.5,
+size,
+0,
+0,
+Math.PI*2
+);
+
+ctx.fillStyle="#FFD83D";
+
+ctx.fill();
+
+}
+
+ctx.restore();
+
+}
+
+}
+
+
+/* =========================
+   3D SYMMETRIC BAG
+========================= */
+
+function drawCoinBags(){
+
+for(
+let i=0;
+i<coinBagObjects.length;
+i++
+){
+
+const bag=coinBagObjects[i];
+
+if(bag.collected){
+
+continue;
+
+}
+
+ctx.save();
+
+ctx.translate(
+bag.x,
+bag.y
+);
+
+const angle=bag.rotation;
+
+const cos=Math.cos(angle);
+const sin=Math.sin(angle);
+
+const visibleWidth=Math.max(
+0.08,
+Math.abs(cos)
+);
+
+const W=46;
+const H=46;
+
+ctx.scale(
+visibleWidth,
+1
+);
+
+const depth=
+5+Math.abs(sin)*9;
+
+ctx.fillStyle="#60330D";
+
+ctx.beginPath();
+
+ctx.roundRect(
+-W/2+depth,
+-H/2,
+W,
+H,
+9
+);
+
+ctx.fill();
+
+const bagGradient=
+ctx.createLinearGradient(
+-W/2,
+0,
+W/2,
+0
+);
+
+bagGradient.addColorStop(
+0,
+"#7E4312"
+);
+
+bagGradient.addColorStop(
+0.25,
+"#B86D22"
+);
+
+bagGradient.addColorStop(
+0.50,
+"#D68A2D"
+);
+
+bagGradient.addColorStop(
+0.75,
+"#B86D22"
+);
+
+bagGradient.addColorStop(
+1,
+"#7E4312"
+);
+
+ctx.fillStyle=bagGradient;
+
+ctx.beginPath();
+
+ctx.moveTo(-19,-13);
+
+ctx.quadraticCurveTo(
+-22,-5,
+-20,8
+);
+
+ctx.quadraticCurveTo(
+-18,22,
+0,23
+);
+
+ctx.quadraticCurveTo(
+18,22,
+20,8
+);
+
+ctx.quadraticCurveTo(
+22,-5,
+19,-13
+);
+
+ctx.closePath();
+
+ctx.fill();
+
+ctx.fillStyle=
+"rgba(75,35,5,0.30)";
+
+ctx.beginPath();
+
+ctx.moveTo(-18,8);
+
+ctx.quadraticCurveTo(
+0,19,
+18,8
+);
+
+ctx.quadraticCurveTo(
+13,21,
+0,22
+);
+
+ctx.quadraticCurveTo(
+-13,21,
+-18,8
+);
+
+ctx.fill();
+
+ctx.fillStyle="#E0A13B";
+
+ctx.beginPath();
+
+ctx.roundRect(
+-19,
+-19,
+38,
+10,
+5
+);
+
+ctx.fill();
+
+ctx.fillStyle="#62340D";
+
+ctx.beginPath();
+
+ctx.roundRect(
+-14,
+-16,
+28,
+5,
+2
+);
+
+ctx.fill();
+
+ctx.strokeStyle="#59300A";
+ctx.lineWidth=4;
+ctx.lineCap="round";
+
+ctx.beginPath();
+
+ctx.moveTo(-11,-11);
+
+ctx.quadraticCurveTo(
+-5,-5,
+0,-9
+);
+
+ctx.quadraticCurveTo(
+5,-5,
+11,-11
+);
+
+ctx.stroke();
+
+ctx.fillStyle=
+"rgba(255,255,255,0.25)";
+
+ctx.beginPath();
+
+ctx.ellipse(
+-10,
+1,
+4,
+13,
+-0.2,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="#FFD700";
+
+ctx.beginPath();
+
+ctx.arc(
+0,
+3,
+10,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.strokeStyle="#956000";
+ctx.lineWidth=2;
+ctx.stroke();
+
+ctx.fillStyle="#946000";
+ctx.font="bold 13px Arial";
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+
+ctx.fillText(
+"$",
+0,
+3
+);
+
+if(visibleWidth<0.30){
+
+ctx.fillStyle="#6B390D";
+
+ctx.fillRect(
+-3,
+-20,
+6,
+40
+);
+
+ctx.fillStyle="#D89A2D";
+
+ctx.fillRect(
+-1,
+-17,
+2,
+34
+);
+
+}
+
+ctx.restore();
+
+}
+
+  }
+  /* =========================
+   KUŞ
+========================= */
+
+function drawBird(){
+
+ctx.save();
+
+ctx.translate(
+bird.x+bird.width/2,
+bird.y+bird.height/2
+);
+
+ctx.rotate(
+bird.rotation
+);
+
+ctx.fillStyle="#ffd43b";
+
+ctx.beginPath();
+
+ctx.ellipse(
+0,
+0,
+bird.width/2,
+bird.height/2,
+0,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="#f2b705";
+
+ctx.beginPath();
+
+ctx.ellipse(
+-7,
+5,
+12,
+7,
+-0.3,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="white";
+
+ctx.beginPath();
+
+ctx.arc(
+10,
+-7,
+6,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="black";
+
+ctx.beginPath();
+
+ctx.arc(
+12,
+-7,
+3,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="#f28c28";
+
+ctx.beginPath();
+
+ctx.moveTo(17,0);
+
+ctx.lineTo(30,5);
+
+ctx.lineTo(17,9);
+
+ctx.closePath();
+
+ctx.fill();
+
+ctx.strokeStyle="#c56b15";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+
+ctx.moveTo(18,5);
+
+ctx.lineTo(27,5);
+
+ctx.stroke();
+
+ctx.restore();
+
+}
+
+
+/* =========================
+   ZEMİN
+========================= */
+
+function drawGround(){}
+
+
+/* =========================
+   ÇİZ
+========================= */
+
+function draw(){
+
+drawBackground();
+drawPipes();
+drawCoins();
+drawCoinBags();
+drawGround();
+drawBird();
+
+}
+
+
+/* =========================
+   GAME LOOP
+========================= */
+
+function gameLoop(){
+
+updateBird();
+updatePipes();
+draw();
+
+if(checkCollision()){
+
+endGame();
+draw();
+return;
+
+}
+
+animationId=
+requestAnimationFrame(
+gameLoop
+);
+
+}
+
+
+/* =========================
+   İLK EKRAN
+========================= */
+
+coinCounter.textContent=
+"🪙 "+coins;
+
+shopCoinDisplay.textContent=
+"🪙 "+coins;
+
+updateInventoryButton();
+
+draw();
+
+</script>
+</body>
+</html>
